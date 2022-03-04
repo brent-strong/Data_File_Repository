@@ -1,0 +1,159 @@
+---
+title: 'Code for poster'
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, warning = FALSE, message = FALSE, comment = NA)
+```
+
+```{r libraries, echo = FALSE, eval = TRUE}
+
+#This code loads the libraries necessary for data cleaning, data exploration and visualization, and data analysis.
+
+library(tidyverse)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(float)
+library(dplyr)
+```
+
+```{r import, echo = FALSE, eval = TRUE}
+
+#Import data from a publicly available repository we created at GitHub. 
+
+homicides <- read_csv("https://raw.githubusercontent.com/brent-strong/Data_File_Repository/main/homicide-rate.csv")
+
+#glimpse(homicides)
+
+education <- read_csv("https://raw.githubusercontent.com/brent-strong/Data_File_Repository/main/learning-outcomes-vs-gdp-per-capita.csv")
+
+#glimpse(education)
+
+#Clean data to retain only homicide rates from 2016. Remove any observations missing a country code since these are regions. Rename variables as appropriate. 
+
+homicides_clean <- homicides %>% 
+  filter(Year==2016 & !is.na(Code)) %>%
+  rename(Year_hom = Year, Hom_rate=Deaths)
+
+#glimpse(homicides_clean)
+
+
+#Clean data to retain only average education quality scores from 2015. Remove any observations missing a country/territory code since these are regions. Rename variables as appropriate. 
+
+education_clean <- education %>% 
+  filter(Year==2015 & !is.na(Code)) %>%
+  select(Entity, Year, Learning_outcome_score, GDP_per_capita, Continent) %>%
+  rename(Year_edu = Year)
+
+#glimpse(education_clean)
+
+#Join all 3 data sets, linking by Entity (country/territory) name. Remove an observation with data on the entire world and any superfluous variables, remove observations that are missing data on homicide or data on both life satisfaction and education, and view the final data set.
+
+Analysis <- homicides_clean %>% 
+  inner_join(education_clean, by="Entity") %>%
+  filter(Entity!="World") %>%
+  filter(!is.na(Hom_rate) & !is.na(Learning_outcome_score)) %>%
+  select(Entity, Hom_rate, GDP_per_capita, Continent, Learning_outcome_score)
+
+#glimpse(Analysis)
+```
+
+```{r, eval = TRUE}
+my_skim <- skim_with(numeric = sfl(n_missing = NULL, complete_rate = NULL, hist = NULL))
+my_skim(Analysis[,c('Hom_rate', 'Learning_outcome_score', 'GDP_per_capita')])  %>%
+  dplyr::select(-c(n_missing, complete_rate, skim_type)) %>%
+  kable(col.names = c("Variable", "Mean", "SD", "Min.", "1st Q.", "Median",
+                        "3rd Q.", "Max."),
+        caption = '\\label{tab:summary} Summary Statistics of Homicide Rate, Educational Level and GDP per capita.',
+        booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 9, latex_options = "HOLD_position")
+```
+
+```{r, eval = TRUE, fig.width = 13, fig.align = "center", fig.cap = "\\label{fig:resids} Scatterplots of Homicide Rate against GDP per capita and log(Homicide Rate) ~ log(GDP per capita) .", fig.pos = "H"}
+p1 <- ggplot(Analysis, aes(x = Learning_outcome_score, y = Hom_rate)) +
+  geom_point() +
+  labs(x = "Educational Level", y = "Homicide Rate") +
+  geom_smooth(method = "lm", se = FALSE)
+
+p2 <- ggplot(Analysis, aes(x = log(Learning_outcome_score), y = log(Hom_rate))) +
+  geom_point() +
+  labs(x = "log(Educational Level)", y = " log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+```{r, eval = TRUE, fig.width = 13, fig.align = "center", fig.cap = "\\label{fig:resids} Scatterplots of Homicide Rate against GDP per capita and log(Homicide Rate) ~ log(GDP per capita) .", fig.pos = "H"}
+p1 <- ggplot(Analysis, aes(x = GDP_per_capita, y = Hom_rate)) +
+  geom_point() +
+  labs(x = "GDP per capita", y = "Homicide Rate") +
+  geom_smooth(method = "lm", se = FALSE)
+
+p2 <- ggplot(Analysis, aes(x = log(GDP_per_capita), y = log(Hom_rate))) +
+  geom_point() +
+  labs(x = "log(GDP per capita)", y = "log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+```{r, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat6} The bar chart of average homicide rate in each continent.", fig.pos = "H"}
+continent.average <- Analysis %>%
+  select(Continent, Hom_rate) %>%
+  group_by(Continent) %>%
+  summarise(average_Hom_rate = mean(Hom_rate))
+ggplot(continent.average, aes(x = Continent, y = average_Hom_rate)) +
+  geom_col(fill = c(2:7)) +
+  labs(x = "Continent", y = "Average Homicide Rate")
+```
+
+```{r, eval = TRUE}
+Continent_Classfier <- function(x){
+  if(x %in% c('Asia','Europe','Oceania'))
+    return(1)
+  else 
+    if(x == 'Africa')
+      return(2)
+  else
+    return(3)
+}
+Analysis2 <- Analysis %>%
+  mutate(Hom_rate_log = log(Hom_rate), 
+         Learning_log = log(Learning_outcome_score),
+         GDP_log = log(GDP_per_capita),
+         Continent_indicator = as.factor(1 + 
+           as.numeric(Continent %in% c('Asia','Europe','Oceania')) + 
+           2*as.numeric(Continent=='Africa')))
+
+model1 <- lm(Hom_rate_log ~ Learning_log + GDP_log + Continent_indicator, Analysis2)
+
+model2 <- lm(Hom_rate_log ~ GDP_log + Continent_indicator, Analysis2)
+
+summary(model2)
+
+```
+$$HomicideRate = `r round(model2$coefficients[[2]],4)`\cdot GDP per capita  `r round(model2$coefficients[[3]],4)`\cdot Education Level + `r round(model2$coefficients[[1]],4)`$$
+```{r, eval = TRUE}
+get_regression_table(model1) %>%
+  knitr::kable(
+    digits = 3,
+    caption = "Estimate Summaries from the SLR Model considering all possible variables",
+    booktabs = T
+  )
+
+```
+
+```{r, eval = TRUE}
+get_regression_table(model2) %>%
+  knitr::kable(
+    digits = 3,
+    caption = "Estimate Summaries from the SLR Model of Final Model",
+    booktabs = T
+  )
+
+```
