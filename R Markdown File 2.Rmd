@@ -1,0 +1,319 @@
+---
+title: Poster Project-Group 9 
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r, echo = FALSE, eval = TRUE}
+
+#This code loads the libraries necessary for data cleaning, data exploration and visualization, and data analysis.
+
+library(tidyverse)
+library(moderndive)
+library(skimr)
+library(kableExtra)
+library(gridExtra)
+library(float)
+library(dplyr)
+library(jtools)
+library(ggplot2)
+library(gapminder)
+library(readxl)
+library(RCurl)
+library(lubridate)
+library(stringr)
+```
+
+Question 1: What is the nature of the association between the quality of education in a country and the rate of deaths due to interpersonal violence (i.e., homicide)?
+
+We are interested in the relationship between governmental policies and violence. For our first question, we are interested in whether the quality of education provided has an appreciable association with the rate of homicide in a country. Two data sets, both sourced from ourworldindata.org, have been used to answer this question. The first is available at the following URL: https://ourworldindata.org/homicides. It provides estimates of the interpersonal violence rate in a large number of countries and territories throughout the world. Similar methods were used to generate estimates for each country as part of the Global Burden of Disease study. The second data set is available at the following URL: https://ourworldindata.org/quality-of-education. This data set provides a standardized education quality score that is designed to be comparable across countries. It also includes information on Gross Domestic Product (GDP) per capita for each country and the continent in which that country is located. These are key covariates in the analysis. The availability of comparable data for both education quality and homicide rates allows us to gain insight into whether increased quality of education is likely to be associated with reductions in the homicide rate. 
+
+```{r, echo = FALSE, eval = TRUE}
+
+#Import data from a publicly available repository we created at GitHub. 
+
+homicides <- read_csv("https://raw.githubusercontent.com/brent-strong/Data_File_Repository/main/homicide-rate.csv")
+
+glimpse(homicides)
+
+education <- read_csv("https://raw.githubusercontent.com/brent-strong/Data_File_Repository/main/learning-outcomes-vs-gdp-per-capita.csv")
+
+glimpse(education)
+
+#Clean data to retain only homicide rates from 2016. Remove any observations missing a country code since these are regions. Rename variables as appropriate. 
+
+homicides_clean <- homicides %>% 
+  filter(Year==2016 & !is.na(Code)) %>%
+  rename(Year_hom = Year, Homicide_rate=Deaths)
+
+glimpse(homicides_clean)
+
+
+#Clean data to retain only average education quality scores from 2015. Remove any observations missing a country/territory code since these are regions. Rename variables as appropriate. Keep data of GDP per capita and continent which will be used as covariates in the analysis. 
+
+education_clean <- education %>% 
+  filter(Year==2015 & !is.na(Code)) %>%
+  select(Entity, Year, Learning_outcome_score, GDP_per_capita, Continent) %>%
+  rename(Year_edu = Year)
+
+glimpse(education_clean)
+
+#Join both data sets, linking by Entity (country/territory) name. Remove an observation with data on the entire world and any observations missing data on the homicide rate or education quality, remove any superfluous values, and inspect the final data set.
+
+Analysis <- homicides_clean %>% 
+  inner_join(education_clean, by="Entity") %>%
+  filter(Entity!="World") %>%
+  filter(!is.na(Homicide_rate) & !is.na(Learning_outcome_score)) %>%
+  select(Entity, Homicide_rate, GDP_per_capita, Continent, Learning_outcome_score)
+
+glimpse(Analysis)
+```
+
+```{r, echo=FALSE, eval = TRUE}
+
+#Generate summary statistics for the 3 continuous variables (homicide rate, learning outcome score, and GPD per capita). Display in a table. 
+
+my_skim <- skim_with(numeric = sfl(n_missing = NULL, complete_rate = NULL, hist = NULL))
+my_skim(Analysis[,c('Homicide_rate', 'Learning_outcome_score', 'GDP_per_capita')])  %>%
+  dplyr::select(-c(n_missing, complete_rate, skim_type)) %>%
+  kable(col.names = c("Variable", "Mean", "SD", "Min.", "1st Q.", "Median",
+                        "3rd Q.", "Max."), 
+        caption = '\\label{tab:summary} Summary statistics on Homicide Rate, Education Quality and GDP per capita.',
+        booktabs = TRUE, format = "latex", digits = 2) %>%
+  kable_styling(font_size = 9, latex_options = "HOLD_position")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Histogram of homicide rates.", fig.pos = "H"}
+
+#Visually display distribution of homicide rates in a histogram.
+
+ggplot(Analysis, aes(x = Homicide_rate)) +
+  geom_histogram() +
+  labs(x = "Homicide Rate")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Histogram of log-transformed homicide rates.", fig.pos = "H"}
+
+#Since the distribution of the un-transformed homicide rates seems to be highly skewed, visually display distribution of log-transformed homicide rates in a histogram.
+
+ggplot(Analysis, aes(x = log(Homicide_rate))) +
+  geom_histogram() +
+  labs(x = "Homicide Rate")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Histogram of education quality scores.", fig.pos = "H"}
+
+#Visually display distribution of learning outcome scores in a histogram.
+
+ggplot(Analysis, aes(x = Learning_outcome_score)) +
+  geom_histogram() +
+  labs(x = "Education Quality")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Histogram of log-transformed education quality scores.", fig.pos = "H"}
+
+#Visually display distribution of log-transformed learning outcome scores in a histogram.
+
+ggplot(Analysis, aes(x = log(Learning_outcome_score))) +
+  geom_histogram() +
+  labs(x = "log of Education Quality")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Histogram of GDP per capita.", fig.pos = "H"}
+
+#Visually display distribution of GDP per capita in a histogram.
+
+ggplot(Analysis, aes(x = GDP_per_capita)) +
+  geom_histogram() +
+  labs(x = "GDP per capita")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Histogram of log-transformed GDP per capita.", fig.pos = "H"}
+
+#Visually display distribution of log-transformed GDP per capita in a histogram.
+
+ggplot(Analysis, aes(x = log(GDP_per_capita))) +
+  geom_histogram() +
+  labs(x = "log of GDP per capita")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat1} Relationship between Homicide Rate and Education Quality. The best-fitting line has been superimposed.", fig.pos = "H"}
+
+#Generate a scatter plot of homicide rate versus learning outcome score and superimpose a line of best fit. 
+
+ggplot(Analysis, aes(x = Learning_outcome_score, y = Homicide_rate)) +
+  geom_point() +
+  labs(x = "Education Quality", y = "Homicide Rate") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.dim=c(3.5,2.4), fig.cap = "\\label{fig:scat2} Relationship between Homicide Rate and Education Quality after log transformation of Homicide Rate. The best-fitting line has been superimposed.", fig.pos = "H"}
+
+#Generate a scatter plot of log-transformed homicide rate versus learning outcome score and superimpose a line of best fit. 
+
+ggplot(Analysis, aes(x = Learning_outcome_score, y = log(Homicide_rate))) +
+  geom_point() +
+  labs(x = "Learning Outcome Score", y = " log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo = FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat2} Relationship between Homicide Rate and Education Quality after log transformation of both variables. The best-fitting line has been superimposed.", fig.pos = "H"}
+
+#Generate a scatter plot of log-transformed homicide rate versus log-transformed learning outcome score and superimpose a line of best fit. 
+
+ggplot(Analysis, aes(x = log(Learning_outcome_score), y = log(Homicide_rate))) +
+  geom_point() +
+  labs(x = "log(Education Quality)", y = " log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat3} Relationship between Homicide Rate and GDP per capita. The best-fitting line has been superimposed.", fig.pos = "H"}
+
+#Generate a scatter plot of homicide rate versus GDP per capita and superimpose a line of best fit. 
+
+ggplot(Analysis, aes(x = GDP_per_capita, y = Homicide_rate)) +
+  geom_point() +
+  labs(x = "GDP per capita", y = "Homicide Rate") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat4} Relationship between Homicide Rate and GDP per capita after log transformation of Homicide Rate. The best-fitting line has been superimposed.", fig.pos = "H"}
+
+#Generate a scatter plot of log-transformed homicide rate versus GDP per capita and superimpose a line of best fit. 
+
+ggplot(Analysis, aes(x = GDP_per_capita, y = log(Homicide_rate))) +
+  geom_point() +
+  labs(x = "GDP per capita", y = "log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat4} Relationship between Homicide Rate and GDP per capita after log transformation of both variables. The best-fitting line has been superimposed.", fig.pos = "H"}
+
+#Generate a scatter plot of log-transformed homicide rate versus log-transformed GDP per capita and superimpose a line of best fit. 
+
+ggplot(Analysis, aes(x = log(GDP_per_capita), y = log(Homicide_rate))) +
+  geom_point() +
+  labs(x = "log(GDP per capita)", y = "log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat5} The bar chart of the number of countries in each continent.", fig.pos = "H"}
+
+#Create a bar chart that shows the number of countries falling in each continent in the data set. 
+
+continent.freq <- table(Analysis$Continent)
+continent.freq <- as.data.frame(continent.freq)
+colnames(continent.freq) <- c("continent", "number")
+ggplot(continent.freq, aes(x = continent, y = number)) +
+  geom_col(fill = c(2:7)) +
+  labs(x = "Continent", y = "Number of Countries")
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat6} The bar chart of average homicide rate in each continent.", fig.pos = "H"}
+
+#Create a bar chart that shows the average homicide rate in each continent. 
+
+continent.average <- Analysis %>%
+  select(Continent, Homicide_rate) %>%
+  group_by(Continent) %>%
+  summarise(average_Homicide_rate = mean(Homicide_rate))
+ggplot(continent.average, aes(x = Continent, y = average_Homicide_rate)) +
+  geom_col(fill = c(2:7)) +
+  labs(x = "Continent", y = "Average Homicide Rate")
+```
+
+```{r, echo=FALSE, eval = TRUE}
+
+#The exploratory data analysis indicates that log-transformations of homicide rate and GPD per capita are likely necessary. Create new variables containing the log-transformed homicide rates and the log-transformed GPD per capitas. Standardize learning outcome score to aid interpretability. Create a new factor variable which combines continents that have very similar homicide rates in order to make the model simpler. 
+
+Analysis2 <- Analysis %>%
+  mutate(Homicide_rate_log = log(Homicide_rate),
+         Learning_outcome_score_standardized = (Learning_outcome_score-mean(Learning_outcome_score))/sd(Learning_outcome_score),
+         GDP_per_capita_log = log(GDP_per_capita),
+         Americas = as.numeric(Continent %in% c('North America','South America')),
+         Asia_Europe_Oceania = as.numeric(Continent %in% c('Asia','Europe', 'Oceania')),
+         Africa = as.numeric(Continent=="Africa"))
+         
+View(Analysis2)
+
+#Create scatter plot of log-transformed homicide rate versus standardized learning outcome score. Superimpose a line of best fit.
+
+ggplot(Analysis2, aes(x = Learning_outcome_score_standardized, y = Homicide_rate_log)) +
+  geom_point() +
+  labs(x = "Standardized learning outcome score", y = "log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+```
+
+```{r, echo=FALSE, eval = TRUE}
+
+#Fit simple linear regression models and examine the results for each covariate to be included in the model.
+
+model1 <- lm(Homicide_rate_log ~ Learning_outcome_score_standardized, Analysis2)
+get_regression_table(model1)
+
+model2 <- lm(Homicide_rate_log ~ GDP_per_capita_log, Analysis2)
+get_regression_table(model2)
+
+model3 <- lm(Homicide_rate_log ~ Africa + Americas, Analysis2)
+get_regression_table(model3)
+
+#Now fit full model including an interaction between continent and education quality. Drop the interaction if it's 95% confidence interval includes 0.
+
+model_full <- lm(Homicide_rate_log ~ Learning_outcome_score_standardized + GDP_per_capita_log + Africa + Americas + Learning_outcome_score_standardized:Africa + Learning_outcome_score_standardized:Americas, Analysis2)
+get_regression_table(model_full)
+
+#The confidence intervals for the interaction terms overlapped with 0. Thus, drop the interaction term and fit the final model with all 3 covariates.
+
+model_final <- lm(Homicide_rate_log ~ Learning_outcome_score_standardized + GDP_per_capita_log + Africa + Americas, Analysis2)
+get_regression_table(model_final)
+
+#Get data set with fitted values and residuals.
+
+regression.points <- get_regression_points(model_final)
+
+```
+
+```{r, eval = TRUE}
+get_regression_table(model_final) %>%
+  knitr::kable(
+    digits = 3,
+    caption = "Parameter estimates from final fitted model",
+    booktabs = T
+  )
+```
+
+```{r, echo=FALSE, eval = TRUE, fig.width = 13, fig.align = "center", fig.cap = "\\label{fig:resids} Scatterplots of the residuals against explanatory variables and the fitted values.", fig.pos = "H"}
+
+#Generate scatter plots of the residuals versus each of the explanatory varaibles and the fitted values to check the assumptions.
+
+p1 <- ggplot(regression.points, aes(x = Learning_outcome_score_standardized, y = residual)) +
+      geom_point() +
+      labs(x = "Standardized education quality score", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) 
+
+p2 <- ggplot(regression.points, aes(x = GDP_per_capita_log, y = residual)) +
+      geom_point() +
+      labs(x = "log-transformed GDP", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1)
+
+p3 <- ggplot(regression.points, aes(x = Homicide_rate_log_hat, y = residual)) +
+      geom_point() +
+      labs(x = "Fitted values", y = "Residual") +
+      geom_hline(yintercept = 0, col = "blue", size = 1) 
+
+grid.arrange(p1, p2, p3,ncol = 3)
+
+#Generate a histogram of the residuals to check the assumptions. 
+
+ggplot(regression.points, aes(x = residual)) +
+      geom_histogram(color = "white", bins=20) +
+      labs(x = "Residual") 
+```
+   
+   
+   
+   
+   
+   
+
