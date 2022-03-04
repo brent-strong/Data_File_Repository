@@ -70,6 +70,33 @@ Analysis <- homicides_clean %>%
 glimpse(Analysis)
 ```
 
+```{r, eval = TRUE, fig.width = 13, fig.align = "center", fig.cap = "\\label{fig:resids} Scatterplots of Homicide Rate against GDP per capita and log(Homicide Rate) ~ log(GDP per capita) .", fig.pos = "H"}
+p1 <- ggplot(Analysis, aes(x = Learning_outcome_score, y = Homicide_rate)) +
+  geom_point() +
+  labs(x = "Learning_outcome_score", y = "Homicide Rate") +
+  geom_smooth(method = "lm", se = FALSE)
+
+p2 <- ggplot(Analysis, aes(x = Learning_outcome_score, y = log(Homicide_rate))) +
+  geom_point() +
+  labs(x = "log(Learning_outcome_score)", y = " log(Homicide Rate)") +
+  geom_smooth(method = "lm", se = FALSE)
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat6} The bar chart of average homicide rate in each continent.", fig.pos = "H"}
+
+#Create a bar chart that shows the average homicide rate in each continent. 
+
+continent.average <- Analysis %>%
+  select(Continent, Homicide_rate) %>%
+  group_by(Continent) %>%
+  summarise(average_Homicide_rate = mean(Homicide_rate))
+ggplot(continent.average, aes(x = Continent, y = average_Homicide_rate)) +
+  geom_col(fill = c(2:7)) +
+  labs(x = "Continent", y = "Average Homicide Rate")
+```
+
 ```{r, echo=FALSE, eval = TRUE}
 
 #Generate summary statistics for the 3 continuous variables (homicide rate, learning outcome score, and GPD per capita). Display in a table. 
