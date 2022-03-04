@@ -70,7 +70,7 @@ Analysis <- homicides_clean %>%
 glimpse(Analysis)
 ```
 
-```{r, eval = TRUE, fig.width = 13, fig.align = "center", fig.cap = "\\label{fig:resids} Scatterplots of Homicide Rate against GDP per capita and log(Homicide Rate) ~ log(GDP per capita) .", fig.pos = "H"}
+```{r, eval = TRUE, fig.width = 13, fig.align = "center", fig.cap = "\\label{fig:resids} Scatterplots of homicide rate against learning outcome score and log(Homicide Rate) against learning outcome score. The scatterplots indicate that log-transformation of homicide rate is likely necessary to satisfy the linear model assumptions.", fig.pos = "H"}
 p1 <- ggplot(Analysis, aes(x = Learning_outcome_score, y = Homicide_rate)) +
   geom_point() +
   labs(x = "Learning_outcome_score", y = "Homicide Rate") +
@@ -84,7 +84,7 @@ p2 <- ggplot(Analysis, aes(x = Learning_outcome_score, y = log(Homicide_rate))) 
 grid.arrange(p1, p2, ncol = 2)
 ```
 
-```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat6} The bar chart of average homicide rate in each continent.", fig.pos = "H"}
+```{r, echo=FALSE, eval = TRUE, out.width = '50%', fig.align = "center", fig.cap = "\\label{fig:scat6} Bar chart of average homicide rate in each continent. This bar chart indicates that homicide rates are similar in North and South America as well as in Asia, Oceania, and Europe", fig.pos = "H"}
 
 #Create a bar chart that shows the average homicide rate in each continent. 
 
@@ -106,7 +106,7 @@ my_skim(Analysis[,c('Homicide_rate', 'Learning_outcome_score', 'GDP_per_capita')
   dplyr::select(-c(n_missing, complete_rate, skim_type)) %>%
   kable(col.names = c("Variable", "Mean", "SD", "Min.", "1st Q.", "Median",
                         "3rd Q.", "Max."), 
-        caption = '\\label{tab:summary} Summary statistics on Homicide Rate, Education Quality and GDP per capita.',
+        caption = '\\label{tab:summary} Summary statistics on homicide rate, learning outcome score and GDP per capita.',
         booktabs = TRUE, format = "latex", digits = 2) %>%
   kable_styling(font_size = 9, latex_options = "HOLD_position")
 ```
